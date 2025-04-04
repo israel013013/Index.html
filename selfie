@@ -1,0 +1,43 @@
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+import smtplib
+import base64
+import os
+
+app = FastAPI()
+
+# Configurações do e-mail (use um e-mail SMTP válido)
+EMAIL_USER = "seuemail@gmail.com"
+EMAIL_PASSWORD = "suasenha"
+EMAIL_DESTINO = "idenio@gmail.com"
+
+class ImageData(BaseModel):
+    image: str  # Base64 da imagem
+
+@app.post("/enviar-foto")
+async def enviar_foto(dados: ImageData):
+    try:
+        # Decodifica a imagem
+        header, encoded = dados.image.split(",", 1)
+        image_bytes = base64.b64decode(encoded)
+
+        # Salva a imagem temporariamente
+        image_path = "selfie.png"
+        with open(image_path, "wb") as f:
+            f.write(image_bytes)
+
+        # Configura o envio de e-mail
+        subject = "Nova selfie recebida"
+        body = "Segue em anexo uma nova selfie capturada."
+        message = f"Subject: {subject}\n\n{body}"
+
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+            server.login(EMAIL_USER, EMAIL_PASSWORD)
+            server.sendmail(EMAIL_USER, EMAIL_DESTINO, message)
+
+        # Remove a imagem após envio
+        os.remove(image_path)
+
+        return {"message": "Imagem enviada com sucesso!"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
